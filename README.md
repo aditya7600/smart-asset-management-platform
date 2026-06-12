@@ -8,7 +8,7 @@ event infrastructure.
 > Submission for **Cult Open Projects 2026 — Smart Asset Management and Resource Allocation Platform**.
 
 ---
-
+## **Website is live at https://smart-asset-management-platform.vercel.app**
 ## ✨ Overview
 
 Organizations rely on shared resources that are easy to lose track of when managed
