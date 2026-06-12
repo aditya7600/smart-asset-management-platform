@@ -1,0 +1,151 @@
+// AssetFlow — Prisma schema
+// Default provider is SQLite for zero-config local development.
+// To use PostgreSQL (e.g. via Docker Compose), change `provider` to "postgresql"
+// and set DATABASE_URL accordingly. The model definitions are database-agnostic.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums (represented as string fields for SQLite compatibility, validated in app)
+// ---------------------------------------------------------------------------
+// Role:           ADMIN | USER
+// AssetStatus:    AVAILABLE | UNAVAILABLE | MAINTENANCE | RETIRED
+// AssetCondition: EXCELLENT | GOOD | FAIR | POOR | DAMAGED
+// BookingStatus:  PENDING | APPROVED | REJECTED | ISSUED | RETURNED | CANCELLED | OVERDUE
+// MaintenanceType:MAINTENANCE | DAMAGE_REPORT | REPAIR
+// MaintenanceStatus: OPEN | IN_PROGRESS | RESOLVED
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("USER")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings        Booking[]      @relation("RequesterBookings")
+  reviewedBookings Booking[]     @relation("ReviewerBookings")
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  reportedIssues  MaintenanceRecord[] @relation("ReportedBy")
+
+  @@index([email])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  assets Asset[]
+}
+
+model Asset {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  categoryId        String
+  totalQuantity     Int      @default(1)
+  availableQuantity Int      @default(1)
+  status            String   @default("AVAILABLE")
+  condition         String   @default("GOOD")
+  location          String?
+  imageUrl          String?
+  qrCode            String   @unique @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  category    Category            @relation(fields: [categoryId], references: [id])
+  bookings    Booking[]
+  maintenance MaintenanceRecord[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([name])
+}
+
+model Booking {
+  id           String    @id @default(cuid())
+  userId       String
+  assetId      String
+  quantity     Int       @default(1)
+  startDate    DateTime
+  endDate      DateTime
+  purpose      String?
+  status       String    @default("PENDING")
+  reviewedById String?
+  reviewNote   String?
+  issuedAt     DateTime?
+  returnedAt   DateTime?
+  dueDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user       User  @relation("RequesterBookings", fields: [userId], references: [id])
+  reviewedBy User? @relation("ReviewerBookings", fields: [reviewedById], references: [id])
+  asset      Asset @relation(fields: [assetId], references: [id])
+
+  @@index([userId])
+  @@index([assetId])
+  @@index([status])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   @default("INFO")
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([read])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  actorName  String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+model MaintenanceRecord {
+  id           String    @id @default(cuid())
+  assetId      String
+  type         String    @default("MAINTENANCE")
+  status       String    @default("OPEN")
+  description  String
+  cost         Float?
+  reportedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  asset      Asset @relation(fields: [assetId], references: [id])
+  reportedBy User? @relation("ReportedBy", fields: [reportedById], references: [id])
+
+  @@index([assetId])
+  @@index([status])
+}

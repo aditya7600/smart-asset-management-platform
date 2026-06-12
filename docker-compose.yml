@@ -1,0 +1,51 @@
+# AssetFlow — full-stack containerized deployment.
+# Usage:  docker compose up --build
+# Then open http://localhost:8080
+#
+# The SQLite database lives in a named volume so data persists across restarts.
+# To switch to PostgreSQL, uncomment the `db` service below, change the Prisma
+# datasource provider to "postgresql", and point DATABASE_URL at it.
+
+services:
+  server:
+    build: ./server
+    container_name: assetflow-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: "file:/data/assetflow.db"
+      JWT_SECRET: "change-this-to-a-long-random-secret-in-production"
+      JWT_EXPIRES_IN: "7d"
+      CLIENT_URL: "http://localhost:8080"
+    volumes:
+      - assetflow_data:/data
+    expose:
+      - "4000"
+
+  client:
+    build: ./client
+    container_name: assetflow-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8080:80"
+
+  # ---- Optional PostgreSQL (see note above) ----
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: assetflow-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: assetflow
+  #     POSTGRES_PASSWORD: assetflow
+  #     POSTGRES_DB: assetflow
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+volumes:
+  assetflow_data:
+  # pgdata:
